@@ -1,1 +1,1 @@
-#Summa+ - AI for dialogue and text summarization
+# Summa+ - AI for dialogue and text summarization
