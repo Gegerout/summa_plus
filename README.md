@@ -14,7 +14,7 @@ Config your api keys inside **config/config.py**
 You can use our code and model for your personal needs. You obliged to specify developers name
 
 ## Developers
-**Banana Studio**
-CEO - Selim Poladov
-Project manager - Georgiy Sablin
-Co-developer - Konstantin Gritzkevich
+**Banana Studio** <br />
+CEO - **Selim Poladov** <br />
+Project manager - **Georgiy Sablin** <br />
+Co-developer - **Konstantin Gritzkevich**
