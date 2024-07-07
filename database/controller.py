@@ -4,8 +4,8 @@ from typing import Type, Union
 import peewee
 import requests as requests
 
-from config.config import SUMMARIZE_URL
-from database import Message, Summarization, VkMessage, VkSummarization, TgMessage, TgSummarization, db
+from config.config import SUMMARIZE_URL, sum_instruction
+from database.database import Message, Summarization, VkMessage, VkSummarization, TgMessage, TgSummarization, db
 
 VK = "VK"
 TG = "TG"
@@ -36,7 +36,7 @@ class Controller:
                 source_id = start_id
             messages = self.MT.select().where((self.MT.id >= start_id) & (self.MT.chat_id == chat_id)).limit(parameter)
             text = requests.post(SUMMARIZE_URL, json={
-                'messages': "dialogue:" + "\n".join(map(lambda x: x.text, list(messages)))
+                'messages': sum_instruction + "\n".join(map(lambda x: x.text, list(messages)))
             }).json()['text']
             self.ST(message_id=source_id, parameter=parameter, text=text).save()
             return text

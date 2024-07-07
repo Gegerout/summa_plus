@@ -7,9 +7,12 @@ from typing import Union
 import requests
 from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramForbiddenError
-from aiogram.filters import BaseFilter
+from aiogram.filters import BaseFilter, Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 
-from config.config import TG_TOKEN, TRANSCRIBE_URL, TG_BOT_USERNAME
+from config.config import TG_TOKEN, TRANSCRIBE_URL, TG_BOT_USERNAME, scraper_latest_post, scraper_key, \
+    scraper_post_contents, SUMMARIZE_URL, posts_instruction
 from database.controller import controller_factory, TG
 
 logging.basicConfig(level=logging.INFO)
@@ -30,6 +33,54 @@ class ChatTypeFilter(BaseFilter):
 
 async def main():
     await dp.start_polling(bot)
+
+
+class ChannelSummarization(StatesGroup):
+    waiting_for_channel_name = State()
+
+
+@dp.message(Command("sum_channel"), ChatTypeFilter(chat_type="private"))
+async def cmd_sum_channel(message: types.Message, state: FSMContext):
+    await message.answer("Пожалуйста, введите название канала.")
+    await state.set_state(ChannelSummarization.waiting_for_channel_name)
+
+
+@dp.message(ChannelSummarization.waiting_for_channel_name, ChatTypeFilter(chat_type="private"))
+async def process_channel_name(message: types.Message, state: FSMContext):
+    channel_url = message.text
+    channel_name = channel_url.split('/')[-1]
+
+    response = requests.get(f'{scraper_latest_post}?key={scraper_key}&username={channel_name}')
+    response_data = response.json()
+
+    if response_data.get('error') or 'result' not in response_data or 'post_number' not in response_data['result']:
+        await message.answer("Ошибка при получении постов из этого канала. Перепроверьте данные")
+
+    latest_post_number = int(response_data['result']['post_number'])
+
+    await message.answer("Формирую сводку:)")
+
+    captions = []
+    post_number = latest_post_number
+    while len(captions) < 7:
+        response = requests.get(f'{scraper_post_contents}?key={scraper_key}&username={channel_name}&post={post_number}')
+        response_data = response.json()
+
+        if not response_data.get('error') and 'results' in response_data and 'caption' in response_data['results']:
+            caption = response_data['results']['caption']
+            captions.append(caption)
+
+        post_number -= 1
+        if post_number <= 0:
+            break
+
+    # Combine all captions into one string
+    combined_captions = " ".join(captions)
+    posts_sum = requests.post(SUMMARIZE_URL, json={
+        'messages': posts_instruction + combined_captions
+    }).json()['text']
+    await message.answer(posts_sum)
+    await state.clear()
 
 
 @dp.message(ChatTypeFilter(chat_type=["group", "supergroup"]))
